@@ -1,7 +1,10 @@
-#include "stm32_base.h"
+#include "stm32f103xb.h"
 
 #include "can.h"
 #include "can_hw.h"
+
+#include "FreeRTOS.h"
+
 
 /*******************************************************************************
 **                                                                            **
@@ -12,10 +15,10 @@
 #if CAN_TX
 void USB_HP_CAN1_TX_IRQHandler() {
     
-    // ���������� ����������� ������
+    // Отправляем уведомление задаче
     can_tx_sem_give_isr();
     
-    // ������� ����� ����������
+    // Очищаем флаги прерывания
     CAN1->TSR |= CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2;
     NVIC_ClearPendingIRQ(USB_HP_CAN1_TX_IRQn);
     
@@ -29,22 +32,22 @@ void USB_LP_CAN1_RX0_IRQHandler() {
     
     while (CAN1->RF0R & CAN_RF0R_FMP0) {
         
-        // ��������� �����
+        // Формируем пакет
         packet.ext = (CAN1->sFIFOMailBox[0].RIR & CAN_RI0R_IDE) ? 1 : 0;
         packet.id  = CAN1->sFIFOMailBox[0].RIR >> (packet.ext ? 3 : 21);
         packet.len = CAN1->sFIFOMailBox[0].RDTR & 0x0F;
         CAN_UINT(packet.data,   32) = CAN1->sFIFOMailBox[0].RDLR;
         CAN_UINT(packet.data+4, 32) = CAN1->sFIFOMailBox[0].RDHR;
         
-        // ���������� ����� �� ���������
+        // Отправляем пакет на обработку
         can_rx_irq(&packet);
         
-        // ����� ������ FIFO 0
+        // Релиз буфера FIFO 0
         CAN1->RF0R |= CAN_RF0R_RFOM0;
         
     }
     
-    // ������� ���� ����������
+    // Очищаем флаг прерывания
     NVIC_ClearPendingIRQ(USB_LP_CAN1_RX0_IRQn);
     
 }
@@ -58,7 +61,7 @@ void USB_LP_CAN1_RX0_IRQHandler() {
 
 void can_hw_init(void) {
     
-    // ����������� ��������
+    // Настраиваем регистры
     RCC->APB1ENR |= RCC_APB1ENR_CAN1EN; // Enable CAN clock
     CAN1->MCR = CAN_MCR_INRQ; // Enter initialization mode
     while (!(CAN1->MSR & CAN_MSR_INAK)); // And wait
@@ -66,7 +69,7 @@ void can_hw_init(void) {
     CAN1->IER = CAN_IER_FMPIE0 | CAN_IER_TMEIE; // FIFO0 buffer message pending and transmit mailbox empty interrupts enable
     CAN1->BTR = CAN_BAUDRATE; // Set baudrate
     
-    // �������� ����� ��� ����� ������
+    // Тестовый режим или режим тишины
     #if CAN_TEST_MODE
     
         CAN1->BTR |= CAN_BTR_LBKM | CAN_BTR_SILM;
@@ -93,7 +96,7 @@ void can_hw_init(void) {
         
     #endif
     
-    // �������� CAN-����������
+    // Стартуем CAN-контроллер
     CAN1->MCR &= ~CAN_MCR_INRQ;
     while (CAN1->MSR & CAN_MSR_INAK);
     
@@ -104,18 +107,18 @@ void can_hw_tx(can_hw_t * packet) {
     
     uint8_t n;
     
-    // ���� ���� ������ ���������, ������ �������� �������, ����� ��������� ������ �� ������������ ���������
+    // Если есть пустые мэйлбоксы, просто забираем семафор, иначе блокируем задачу до освобождения мэйлбокса
     can_tx_sem_take((CAN1->TSR & CAN_TSR_TME) == 0);
     
-    // �������� ��������� ��������
+    // Получаем свободный мэйлбокс
     n = (CAN1->TSR & CAN_TSR_CODE) >> 24;
     
-    // ��������� ������
+    // Заполняем данные
     CAN1->sTxMailBox[n].TDLR = CAN_UINT(packet->data,   32);
     CAN1->sTxMailBox[n].TDHR = CAN_UINT(packet->data+4, 32);
     CAN1->sTxMailBox[n].TDTR = packet->len;
     
-    // ��������� ������������� � ������� ��� ��������
+    // Заполняем идентификатор и дергаем бит отправки
     CAN1->sTxMailBox[n].TIR = packet->ext
                             ? ((packet->id <<  3) | CAN_TI0R_TXRQ | CAN_TI0R_IDE)
                             : ((packet->id << 21) | CAN_TI0R_TXRQ);

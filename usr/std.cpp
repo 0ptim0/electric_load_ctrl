@@ -1,4 +1,3 @@
-#include "stm32_base.h"
 #include "std.h"
 
 /* Function for convert float to char with max 3 digit after point */

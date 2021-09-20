@@ -1,4 +1,3 @@
-#include "stm32_base.h"
 #include "rcc.h"
 
 void rcc_class::InitClock() 

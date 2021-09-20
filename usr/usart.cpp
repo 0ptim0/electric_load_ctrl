@@ -1,4 +1,3 @@
-#include "stm32_base.h"
 #include "usart.h"
 
 static SemaphoreHandle_t mutex;
@@ -64,7 +63,7 @@ int usart_class::Transmit(uint8_t *pdata, uint16_t length)
 }
 
 int usart_class::Receive(uint8_t *pdata, uint16_t length) 
-{   
+{
     if(xSemaphoreTake(mutex, cfg->timeout) == pdTRUE) {
 
         HAL_UART_Receive_IT(&USART_InitStructure, pdata, length);

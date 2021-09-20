@@ -1,6 +1,10 @@
 #ifndef _CAN_HW_H
 #define _CAN_HW_H
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+
 // Baudrates (see http://www.bittiming.can-wiki.info/)
 
 #define CAN_BAUDRATE_1000KHZ 0x00060003 /*   25 m */
@@ -26,4 +30,8 @@ void can_hw_init(void);
     int32_t can_hw_filter(int32_t n, uint32_t id, uint32_t id_mask, uint8_t ext, uint8_t ext_mask);
 #endif
 
+#endif
+
+#ifdef __cplusplus
+    }
 #endif

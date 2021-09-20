@@ -3,6 +3,8 @@
 #include "rcc_periph.h"
 #include "gpio.h"
 
+#define USART_BUF_SIZE 256
+
 struct usart_cfg_t {
     USART_TypeDef *USART;
     const gpio_cfg_t *tx_cfg;
@@ -20,6 +22,7 @@ private:
     gpio_class TX;
     gpio_class RX;
 public:
+    uint8_t buf[USART_BUF_SIZE];
     usart_class(const usart_cfg_t *const cfg);
     int Init(void);
     int ClockEnable(void);

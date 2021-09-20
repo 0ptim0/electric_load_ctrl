@@ -16,12 +16,12 @@ public:
 class gpio_class : public gpio_base_class, public rcc_periph_class
 {
 protected:
-    const gpio_cfg_t *const cfg;
+    const gpio_cfg_t *cfg;
 public:
-    gpio_class(const gpio_cfg_t *const cfg);
+    gpio_class(const gpio_cfg_t *cfg);
     gpio_class();
     int Init(void);
-    int SetConf(const gpio_cfg_t *const cfg);
+    int SetConf(const gpio_cfg_t *cfg);
     void SetOn(void);
     void SetOff(void);
     int ClockEnable(void);

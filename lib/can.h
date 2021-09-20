@@ -1,29 +1,34 @@
 #ifndef _CAN_H
 #define _CAN_H
 
-#include "stm32_base.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 // Settings
 
 #define CAN_BAUDRATE      CAN_BAUDRATE_100KHZ
 
-#define CAN_PRIO_BITS       2 /* ���������� ��� ����������. ����� �������� 2^CAN_PRIO_BITS ������� ��� ������. �������� 6 (��-�� ���������� �������������� �������������� � ����������� �������) */
-#define CAN_LENGTH        256 /* ������������ ����� ������ (�������� 256, ������ 8) */
+#define CAN_PRIO_BITS       2 /* Количество бит приоритета. Будет выделено 2^CAN_PRIO_BITS буферов под пакеты. Максимум 6 (из-за применения нерасширенного идентификатора в последующих пакетах) */
+#define CAN_LENGTH        256 /* Максимальная длина пакета (максимум 256, кратно 8) */
 
 #define CAN_TEST_MODE       0
-#define CAN_9_BYTE_HACK     1 /* ������������ ��� � ������������ ���������� ����� ������ 9 ���� ��� �������� ���������� ������ (����� ��� ����� ���������� ������ 8 ���� ����� ���� ���������� ������ �����) */
+#define CAN_9_BYTE_HACK     1 /* Использовать хак с возможностью установить длину пакета 9 байт для детекции последнего пакета (иначе при длине последнего пакета 8 байт после него отправится пустой пакет) */
 
 #define CAN_TX              1
 #define CAN_TX_CONFIRM      1
 #define CAN_TX_TASK_PRIO    6
-#define CAN_TX_TASK_STACK  64 /* �� ������������ �� �������, ����� ���������� ���� */
-#define CAN_TX_QUEUE_LEN  { 128, 128, 128, 128 } /* ���������� ����-������� (������ 8 ����) �� �������� ��� ������� ���������� */
+#define CAN_TX_TASK_STACK  64 /* От пользователя не зависит, стека потребляет мало */
+#define CAN_TX_QUEUE_LEN  { 128, 128, 128, 128 } /* Количество мини-пакетов (длиной 8 байт) на передачу для каждого приоритета */
 #define CAN_TX_IRQ_PRIO   ( (configMAX_SYSCALL_INTERRUPT_PRIORITY >> (8 - __NVIC_PRIO_BITS)) + 1 )
 
 #define CAN_RX              1
 #define CAN_RX_TASK_PRIO    7
-#define CAN_RX_TASK_STACK ( CAN_LENGTH * CAN_PRIORITIES / 4 + 256 ) /* ������ ������ ������, ������� �� ��������� ������� ��������� ������� */
-#define CAN_RX_QUEUE_LEN  256 /* ���������� ���������� (������ 16 ����) ������� �� ����� */
+#define CAN_RX_TASK_STACK ( CAN_LENGTH * CAN_PRIORITIES / 4 + 256 ) /* Учтены буферы приема, зависит от сложности функции обработки пакетов */
+#define CAN_RX_QUEUE_LEN  256 /* Количество хардварных (длиной 16 байт) пакетов на прием */
 #define CAN_RX_IRQ_PRIO   ( (configMAX_SYSCALL_INTERRUPT_PRIORITY >> (8 - __NVIC_PRIO_BITS)) + 2 )
 
 // Defines
@@ -43,14 +48,13 @@
 
 // Typedefs
 
-typedef __packed struct {
+typedef struct __attribute__((__packed__)) {
     uint32_t id;
     uint8_t  len:4;
     uint8_t  ext:1;
     uint8_t  data[8];
 } can_hw_t;
 
-#pragma anon_unions
 typedef union {
     struct {
         uint8_t  from;
@@ -112,4 +116,8 @@ void can_init(void (*callback)(can_t *));
     int32_t can_filter_cmd(int32_t n, uint8_t from, uint8_t from_mask, uint8_t to, uint8_t to_mask, uint8_t cmd, uint8_t cmd_mask);
 #endif
 
+#endif
+
+#ifdef __cplusplus
+    }
 #endif

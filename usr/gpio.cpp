@@ -5,23 +5,20 @@ gpio_class::gpio_class() : cfg(nullptr)
 {
 }
 
-gpio_class::gpio_class(const gpio_cfg_t *const cfg) : cfg(cfg) 
+gpio_class::gpio_class(const gpio_cfg_t *cfg) : cfg(cfg) 
 {
 }
 
 int gpio_class::Init(void) 
 {   
     int rv;
+    if(cfg == nullptr) return EINVAL;
     if(rv = this->ClockEnable() != 0) return rv;
-    if(cfg != nullptr) {
-        HAL_GPIO_Init(cfg->GPIO, (GPIO_InitTypeDef *)&cfg->GPIO_InitStructure);
-    } else {
-        return EINVAL;
-    }
+    HAL_GPIO_Init(cfg->GPIO, (GPIO_InitTypeDef *)&cfg->GPIO_InitStructure);
     return 0;
 }
 
-int gpio_class::SetConf(const gpio_cfg_t *const cfg) 
+int gpio_class::SetConf(const gpio_cfg_t *cfg) 
 {   
     int rv;
     if(cfg != nullptr) {

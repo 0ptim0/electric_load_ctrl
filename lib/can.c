@@ -1,9 +1,12 @@
 #include <stdint.h>
-#include "stm32_base.h"
 
 #include "can.h"
 #include "can_hw.h"
 
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "task.h"
 
 /*******************************************************************************
 **                                                                            **
@@ -42,23 +45,23 @@ void can_rx_task(void * param) {
     uint8_t  to;
     uint8_t  cmd;
     uint8_t  prio;
-    uint8_t  p_num; // ����� ������
-    uint16_t b_num; // ����� ������� �����
-    uint16_t bytes; // ���������� ����
+    uint8_t  p_num; // Номер пакета
+    uint16_t b_num; // Номер первого байта
+    uint16_t bytes; // Количество байт
     
     while (1) {
         
-        // �������� ���������
+        // Получаем сообщение
         xQueueReceive(can_rx_queue, &hw, portMAX_DELAY);
         
-        // ������ ����� ������� ����� ������
+        // Парсим номер первого байта данных
         p_num = (~(hw.id >> (24-CAN_PRIO_BITS))) & 0x1F;
         b_num = p_num << 3;
         if (b_num >= CAN_LENGTH) {
             continue;
         }
         
-        // ������ �� ��������� ������� ������
+        // Парсим из регистров входные данные
         from  = hw.id >> (16 - CAN_PRIO_BITS);
         to    = hw.id >> ( 8 - CAN_PRIO_BITS);
         cmd   = ((hw.id >> 21) & CAN_PRIO_MASK) | (hw.id & CAN_CMD_MASK);
@@ -70,8 +73,8 @@ void can_rx_task(void * param) {
             }
         #endif
         
-        // ��������� ��������� ������ ��� ������ ������� ����� � ��������� ��� �����������
-        // ���������� �� id ��� IDE (������������ ��������������)
+        // Сохраняем заголовок пакета при приеме первого куска и проверяем при последующих
+        // Выкидываем из id бит IDE (расширенного идентификатора)
         if (!p_num) {
             buf[prio].from = from;
             buf[prio].to   = to;
@@ -84,14 +87,14 @@ void can_rx_task(void * param) {
             }
         }
         
-        // �������� ������
+        // Копируем данные
         buf[prio].len += bytes;
         if (bytes) {
             *(uint32_t *)(buf[prio].data + b_num)     = CAN_UINT(hw.data,   32);
             *(uint32_t *)(buf[prio].data + b_num + 4) = CAN_UINT(hw.data+4, 32);
         }
         
-        // �������� �������-����������, ���� ����� ��������� � ��� ����� �������
+        // Вызываем функцию-обработчик, если пакет последний и все байты приняты
         if (((hw.len & 0x0F)!=8 || b_num==(CAN_LENGTH-8)) && buf[prio].len==(b_num+bytes)) {
             
             #if (CAN_TX && CAN_TX_CONFIRM)
@@ -121,17 +124,17 @@ void can_tx_task(void * param) {
     
     while (1) {
         
-        // �������� "������������" ������?
+        // Отправка "завершающего" пакета?
         if (!CAN_9_BYTE_HACK && len[i]==0x8000) {
             
-            // �������� ������� �����
+            // Обнуляем счетчик длины
             length = 0;
             len[i] = 0;
             
         }
         else {
             
-            // ��������� ����� �� �������
+            // Принимаем пакет из очереди
             xSemaphoreTake(can_tx_semphr, portMAX_DELAY);
             for (i=0; i<CAN_PRIORITIES; i++) {
                 if (xQueueReceive(can_tx_queue[i], &tx, 0)) {
@@ -139,10 +142,10 @@ void can_tx_task(void * param) {
                 }
             }
             
-            // ������ ������ ��� ���������
+            // Пришли данные или заголовок
             if (len[i]) {
                 
-                // ���������� ����� ������ � �������������� ������� ���������� ������
+                // Определяем длину пакета и декрементируем счетчик оставшихся данных
                 if (len[i] > 8) {
                     length  = 8;
                     len[i] -= 8;
@@ -159,15 +162,15 @@ void can_tx_task(void * param) {
             }
             else {
                 
-                // ���������� ID
+                // Составляем ID
                 id[i] = can_id(tx.from, tx.to, tx.cmd) | (0x1F000000 >> CAN_PRIO_BITS);
                 
-                // ���� ������ � ������?
+                // Есть данные в пакете?
                 if (tx.len) {
                     
-                    // C�������� ����� ������ � ��������� � ���������� �������� � ������� ��� ��������
+                    // Cохраняем длину пакета и переходим к следующему элементу в очереди без отправки
                     len[i] = tx.len;
-                    if (!CAN_9_BYTE_HACK && !(tx.len&0x07) && tx.len<CAN_LENGTH) { // ��� �� �����������, ������ 8 � �� ����� ������������ �����: ���� ����� "���������" ������� ������ �������
+                    if (!CAN_9_BYTE_HACK && !(tx.len&0x07) && tx.len<CAN_LENGTH) { // Хак не применяется, кратно 8 и не равно максимальной длине: надо будет "завершать" посылку пустым пакетом
                         len[i] |= 0x8000;
                     }
                     continue;
@@ -175,7 +178,7 @@ void can_tx_task(void * param) {
                 }
                 else {
                     
-                    // ����� ���������� ����� ��� ������
+                    // Будем отправлять пакет без данных
                     length = 0;
                     
                 }
@@ -184,7 +187,7 @@ void can_tx_task(void * param) {
             
         }
         
-        // ��������� � ���������� ����� � �������
+        // Формируем и отправляем пакет с данными
         hw.id = id[i];
         hw.len = length;
         hw.ext = 1;
@@ -192,7 +195,7 @@ void can_tx_task(void * param) {
         CAN_UINT(hw.data+4, 32) = tx.data[1];
         can_hw_tx(&hw);
         
-        // �������������� id
+        // Декрементируем id
         id[i] -= 0x01000000 >> CAN_PRIO_BITS;
         
     }
@@ -260,14 +263,14 @@ void can_confirm_disable(void) {
 
 #if CAN_TX
 
-// ������ �������� �������� ������� can_hw_tx() � ����������� ���������� �������� �������
+// Данной функцией сообщаем функции can_hw_tx() о возможности дальнейшей отправки пакетов
 void can_tx_sem_give(void) {
     
     xTaskNotifyGive(can_tx_task_handle);
     
 }
 
-// ������ ������� can_tx_sem_give() ��� ����������
+// Версия функции can_tx_sem_give() для прерываний
 void can_tx_sem_give_isr(void) {
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -277,8 +280,8 @@ void can_tx_sem_give_isr(void) {
     
 }
 
-// ������ ������� �������� � can_hw_tx(). ���� wait==1, �������
-// ����� ��������� ����������, ����� �� ������ ���������
+// Данную функцию вызываем в can_hw_tx(). Если wait==1, семафор
+// будет ожидаться бесконечно, иначе он просто очистится
 void can_tx_sem_take(uint8_t wait) {
     
     ulTaskNotifyTake(pdTRUE, wait ? portMAX_DELAY : 0);
@@ -289,14 +292,14 @@ void can_tx_sem_take(uint8_t wait) {
 
 #if CAN_RX
 
-// ��� ������ CAN-������ �������� ��� � ��������� � ������� ���� �������
+// При приеме CAN-пакета передаем его в обработку с помощью этой функции
 void can_rx(can_hw_t * packet) {
     
     xQueueSend(can_rx_queue, packet, portMAX_DELAY);
     
 }
 
-// ������ ������� can_rx() ��� ����������
+// Версия функции can_rx() для прерываний
 void can_rx_irq(can_hw_t * packet) {
     
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -317,7 +320,7 @@ void can_rx_irq(can_hw_t * packet) {
 void can_init(void (*callback)(can_t *)) {
     
     #if !CAN_TX && !CAN_RX
-        #error "������ ���� ������� TX �/��� RX"
+        #error "Должен быть активен TX и/или RX"
     #endif
     
     #if CAN_TX
@@ -346,7 +349,7 @@ void can_init(void (*callback)(can_t *)) {
         
     #endif
     
-    // �������������� ���������� �����
+    // Инициализируем аппаратную часть
     can_hw_init();
     
 }
@@ -358,18 +361,18 @@ void can_tx(uint8_t from, uint8_t to, uint8_t cmd, uint16_t len, uint8_t * data,
     can_tx_t tx;
     uint8_t  prio = can_cmd_prio(cmd);
     
-    // ������������ �����
+    // Контролируем длину
     if (len>CAN_LENGTH) {
         len = CAN_LENGTH;
     }
     
-    // �������� �������
+    // Забираем мьютекс
     xSemaphoreTake(can_tx_mutex[prio], portMAX_DELAY);
     
-    // � ���� �� �����?
+    // А есть ли место?
     if (wait || uxQueueSpacesAvailable(can_tx_queue[prio]) > (len / 8 + ((len % 8) ? 2 : 1))) {
         
-        // ���������� ��������� � ������ ��������
+        // Отправляем заголовок в задачу отправки
         tx.from = from;
         tx.to   = to;
         tx.cmd  = cmd;
@@ -377,7 +380,7 @@ void can_tx(uint8_t from, uint8_t to, uint8_t cmd, uint16_t len, uint8_t * data,
         xQueueSend(can_tx_queue[prio], &tx, portMAX_DELAY);
         xSemaphoreGive(can_tx_semphr);
         
-        // ���������� ������ � ������ ��������
+        // Отправляем данные в задачу отправки
         for (i=0; i<len; i+=8) {
             tx.data[0] = *((uint32_t *)(data+i));
             tx.data[1] = *((uint32_t *)(data+i+4));
@@ -387,7 +390,7 @@ void can_tx(uint8_t from, uint8_t to, uint8_t cmd, uint16_t len, uint8_t * data,
         
     }
     
-    // ������ �������
+    // Отдаем мьютекс
     xSemaphoreGive(can_tx_mutex[prio]);
     
 }
@@ -434,7 +437,7 @@ void can_tx_confirm_update(uint8_t addr, uint8_t cmd) {
 #if CAN_RX
 int32_t can_filter_cmd(int32_t n, uint8_t from, uint8_t from_mask, uint8_t to, uint8_t to_mask, uint8_t cmd, uint8_t cmd_mask) {
     
-    // �������������� �� ���������� ����������
+    // Перенаправляем на хардварную реализацию
     return can_hw_filter(n, can_id(from, to, cmd), can_id(from_mask, to_mask, cmd_mask), 1, 1);
     
 }
