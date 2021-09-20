@@ -40,16 +40,16 @@ void LoadCmd(can_t *can)
     switch(can->cmd) {
         case LOAD_CMD_OFF:
             load.Off();
-            // can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
         case LOAD_CMD_ON:
             load.On();
-            // can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
         case LOAD_CMD_SET:
             load_mask = (can->data[0] << 8) | (can->data[1]);
             load.Set(load_mask);
-            // can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
         default:
             break;
