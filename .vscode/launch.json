@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "name": "openocd",
+            "request": "launch",
+            "type": "cortex-debug",
+            "cwd": "${workspaceRoot}",
+            "servertype": "openocd",
+            "executable": "build/electric_load_ctrl.elf",
+            "svdFile": "mcu/stm32f103c8t6/core/STM32F103.svd",
+            "showDevDebugOutput": true,
+            "searchDir": [
+                "/usr/share/openocd/scripts",],
+            "configFiles": [
+                "/usr/share/openocd/scripts/board/bluepill.cfg"
+            ]
+        }
+    ]
+}

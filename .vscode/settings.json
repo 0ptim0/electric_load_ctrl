@@ -1,0 +1,23 @@
+{
+    "cortex-debug.armToolchainPath": "/usr/local/share/gcc-arm-none-eabi-10-2020-q4-major/bin/",
+    "cortex-debug.openocdPath": "/usr/bin/openocd",
+    "files.associations": {
+        "limits": "cpp",
+        "climits": "cpp",
+        "cmath": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "cstdarg": "cpp",
+        "cstdio": "cpp",
+        "cstdlib": "cpp",
+        "exception": "cpp",
+        "type_traits": "cpp",
+        "new": "cpp",
+        "*.tcc": "cpp",
+        "cstdint": "cpp",
+        "typeinfo": "cpp",
+        "stdint.h": "c",
+        "can.h": "c",
+        "task.h": "c"
+    }
+}
