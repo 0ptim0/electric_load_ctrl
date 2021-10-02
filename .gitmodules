@@ -4,3 +4,12 @@
 [submodule "mcu"]
 	path = mcu
 	url = git@github.com:0ptim0/mcu.git
+[submodule "pcpplib"]
+	path = pcpplib
+	url = git@github.com:0ptim0/pcpplib.git
+[submodule "stdlib"]
+	path = stdlib
+	url = git@github.com:0ptim0/stdlib.git
+[submodule "protolib"]
+	path = protolib
+	url = git@github.com:0ptim0/protolib.git

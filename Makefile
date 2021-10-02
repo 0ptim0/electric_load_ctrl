@@ -2,7 +2,7 @@
 # Makefile for STM32 board projects
 
 OUTPATH = build
-PROJECT = $(OUTPATH)/electric_load_ctrl
+PROJECT = $(OUTPATH)/electric_load
 MCU = stm32f103c8t6
 OPENOCD_SCRIPT_DIR ?= /usr/share/openocd/scripts
 HEAP_SIZE = 0x400
@@ -14,20 +14,26 @@ SOURCES_S = $(wildcard mcu/$(MCU)/core/*.s)
 
 SOURCES_C_CORE = $(wildcard mcu/$(MCU)/core/*.c)
 SOURCES_C_HAL = $(wildcard mcu/$(MCU)/hal/src/*.c)
-SOURCES_C_RTOS_CORE = $(wildcard freertos/core/src/*.c)
-SOURCES_C_RTOS_PORT = $(wildcard freertos/port/$(MCU)/*.c)
-SOURCES_C_LIB = $(wildcard lib/*.c)
+SOURCES_C_RTOS = $(wildcard freertos/core/src/*.c)
+SOURCES_C_RTOS += $(wildcard freertos/port/$(MCU)/*.c)
+SOURCES_C_LIB += $(wildcard clib/*.c)
 SOURCES_C_HEAP = freertos/MemMang/heap_1.c
+
+SOURCES_CXX_LIB = $(wildcard pcpplib/src/*.cpp)
+SOURCES_CXX_LIB += $(wildcard protolib/src/*.cpp)
+SOURCES_CXX_LIB += $(wildcard stdlib/src/*.cpp)
+SOURCES_CXX_USR = $(wildcard usr/*.cpp)
 
 SOURCES_C = $(SOURCES_C_CORE)
 SOURCES_C += $(SOURCES_C_HAL)
-SOURCES_C += $(SOURCES_C_RTOS_CORE)
-SOURCES_C += $(SOURCES_C_RTOS_PORT)
+SOURCES_C += $(SOURCES_C_RTOS)
 SOURCES_C += $(SOURCES_C_HEAP)
 SOURCES_C += $(SOURCES_C_LIB)
 
 SOURCES_CXX = $(wildcard *.cpp)
-SOURCES_CXX += $(wildcard usr/*.cpp)
+SOURCES_CXX += $(SOURCES_CXX_LIB)
+SOURCES_CXX += $(SOURCES_CXX_USR)
+
 
 SOURCES = $(SOURCES_S) $(SOURCES_C) $(SOURCES_CXX)
 OBJS = $(SOURCES_S:.s=.o) $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
@@ -36,18 +42,18 @@ OBJS = $(SOURCES_S:.s=.o) $(SOURCES_C:.c=.o) $(SOURCES_CXX:.cpp=.o)
 
 INC_CORE = -Imcu/$(MCU)/core
 INC_HAL = -Imcu/$(MCU)/hal/inc
-INC_RTOS_CORE = -Ifreertos/core/inc 
-INC_RTOS_PORT = -Ifreertos/port/$(MCU)
-INC_LIB = -Ilib
-INC_USR = -Iusr
+INC_LIB = -Iusr
+INC_LIB += -Ipcpplib/inc
+INC_LIB += -Iprotolib/inc
+INC_LIB += -Istdlib/inc
+INC_LIB += -Iclib
+INC_RTOS = -Ifreertos/core/inc 
+INC_RTOS += -Ifreertos/port/$(MCU)
 INC_CONF = -Iconf
-
-INCLUDES = $(INC_CORE)
+INCLUDES += $(INC_CORE)
 INCLUDES += $(INC_HAL)
-INCLUDES += $(INC_RTOS_CORE)
-INCLUDES += $(INC_RTOS_PORT)
 INCLUDES += $(INC_LIB)
-INCLUDES += $(INC_USR)
+INCLUDES += $(INC_RTOS)
 INCLUDES += $(INC_CONF)
 
 DEFINES = -DSTM32 -DSTM32F1 -DSTM32F103xB -DHEAP_SIZE=$(HEAP_SIZE)
@@ -77,15 +83,15 @@ MCUFLAGS = -mcpu=cortex-m3 -mlittle-endian -mfloat-abi=soft -mthumb \
 
 DEBUG_OPTIMIZE_FLAGS = -O0 -ggdb -gdwarf-2
 
-CFLAGS = -std=gnu99 -Wall -Wextra
+CFLAGS = -Wall -Wextra
 CFLAGS_EXTRA = -nostartfiles -nodefaultlibs -nostdlib \
                -fdata-sections -ffunction-sections
 
 CFLAGS += $(DEFINES) $(MCUFLAGS) $(DEBUG_OPTIMIZE_FLAGS) $(CFLAGS_EXTRA) $(INCLUDES)
 CXXFLAGS = $(DEFINES) $(MCUFLAGS) $(DEBUG_OPTIMIZE_FLAGS) $(INCLUDES) -std=c++17
 
-LDFLAGS = -specs=nano.specs -specs=nosys.specs -static $(MCUFLAGS) -Wl,--start-group -lgcc -lc -lg -Wl,--end-group \
-          -Wl,--gc-sections -l"stdc++" -T mcu/$(MCU)/core/STM32F103XB_FLASH.ld
+LDFLAGS = -l"stdc++" -specs=nano.specs -specs=nosys.specs -static $(MCUFLAGS) -Wl,--start-group -lgcc -lc -lg -Wl,--end-group \
+          -Wl,--gc-sections -T mcu/$(MCU)/core/STM32F103XB_FLASH.ld
 
 .PHONY: dirs all clean flash erase
 
