@@ -27,8 +27,8 @@ private:
     const load_cfg_t *const cfg;
     gpio_class step[LOAD_STEPS];
 public:
-    float voltage;
-    float current;
+    uint32_t voltage;
+    uint32_t current;
     uint16_t mask;
     bool arm;
 public:

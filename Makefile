@@ -2,7 +2,7 @@
 # Makefile for STM32 board projects
 
 OUTPATH = build
-PROJECT = $(OUTPATH)/electric_load
+PROJECT = $(OUTPATH)/electric_load_ctrl
 MCU = stm32f103c8t6
 OPENOCD_SCRIPT_DIR ?= /usr/share/openocd/scripts
 HEAP_SIZE = 0x400

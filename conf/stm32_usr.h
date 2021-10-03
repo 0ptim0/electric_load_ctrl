@@ -4,3 +4,5 @@
 #include "usart.h"
 #include "cfg.h"
 #include "load.h"
+#include "wake.h"
+#include "crc.h"

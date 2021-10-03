@@ -4,32 +4,38 @@
 rcc_class rcc;
 usart_class usart(&usart_cfg);
 load_class load(&load_cfg);
+wake_class wake;
+wake_packet_t tm;
+uint8_t data[8];
+
+TimerHandle_t xOneShotTimer; 
 
 void ReceiveMeas(void *pvParameters) 
 {
     usart.Init();
-    uint8_t buf8[8]; // buffer for receiving measurement data (2x float)
-    uint32_t buf32[2]; // buffer for conversion data from 8bit to 32bit
+    tm.data = data;
     while(1){
-        vTaskDelay(20);
-        if(usart.Receive(buf8,8)){ 
-            buf32[0] = ((buf8[0] << 24) | (buf8[1] << 16) | (buf8[2] << 8) | buf8[3]);
-            buf32[1] = ((buf8[4] << 24) | (buf8[5] << 16) | (buf8[6] << 8) | buf8[7]);
-            load.voltage = static_cast<float>(buf32[0]);
-            load.current = static_cast<float>(buf32[1]);
-        }
+            usart.Receive(wake.GetBufPtr(),wake.GetBufSize());
+            if(!wake.Unpacking(&tm)) {
+                load.voltage = ((tm.data[0]) | (tm.data[1] << 8) | (tm.data[2] << 16) | (tm.data[3] << 24));
+                load.current = ((tm.data[4]) | (tm.data[5] << 8) | (tm.data[6] << 16) | (tm.data[7] << 24));
+                wake.ClearBuf();
+            }
+            while(0);
     }
 }
 
 void SendMeas(void *pvParameters) 
 {
     while(1){
+        vTaskDelay(1000);
     }
 }
 
 void ReceiveCmd(void *pvParameters) 
 {
     while(1){
+        vTaskDelay(1000);
     }
 }
 
@@ -53,7 +59,8 @@ void LoadCmd(can_t *can)
             break;
         default:
             break;
-    } 
+    }
+    vTaskDelay(1000);
 }
 
 int main(void) 
@@ -71,7 +78,7 @@ int main(void)
 
 extern "C" 
 {
-    void USART3_IRQHandler(void) 
+    void USART2_IRQHandler(void) 
     {
         usart.Handler();
     }
