@@ -13,6 +13,3 @@
 
 /** ERRNO */
 #include "errno.h"
-
-/** Handmade STD **/
-#include "std.h"
