@@ -75,7 +75,8 @@ int main(void)
     __HAL_AFIO_REMAP_SWJ_NOJTAG();
     rcc.InitClock();
     can_init(LoadCmd);
-    can_filter(0, LOAD_ADDR, 0xFF, 0x01, 0xFF);
+    can_filter(0, 0x00, 0xFF, 0x00,      0x00); // From 0, to all - enumeration commands
+    can_filter(1, 0x00, 0x00, 0x00,      0xFF); // From all, broadcast
     xTaskCreate(ReceiveMeas, "ReceiveMeas", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(SendMeas, "SendMeas", configMINIMAL_STACK_SIZE, NULL, CAN_TX_TASK_PRIO, NULL);
     vTaskStartScheduler();
@@ -89,5 +90,17 @@ extern "C"
     {
         usart.Handler();
     }
+    #if CAN_TX
+void USB_HP_CAN1_TX_IRQHandler() {
+    
+    // Отправляем уведомление задаче
+    can_tx_sem_give_isr();
+    
+    // Очищаем флаги прерывания
+    CAN1->TSR |= CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2;
+    NVIC_ClearPendingIRQ(USB_HP_CAN1_TX_IRQn);
+    
+}
+#endif
 
 }

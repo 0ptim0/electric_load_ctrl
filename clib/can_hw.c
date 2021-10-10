@@ -12,18 +12,18 @@
 **                                                                            **
 *******************************************************************************/
 
-#if CAN_TX
-void USB_HP_CAN1_TX_IRQHandler() {
+// #if CAN_TX
+// void USB_HP_CAN1_TX_IRQHandler() {
     
-    // Отправляем уведомление задаче
-    can_tx_sem_give_isr();
+//     // Отправляем уведомление задаче
+//     can_tx_sem_give_isr();
     
-    // Очищаем флаги прерывания
-    CAN1->TSR |= CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2;
-    NVIC_ClearPendingIRQ(USB_HP_CAN1_TX_IRQn);
+//     // Очищаем флаги прерывания
+//     CAN1->TSR |= CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2;
+//     NVIC_ClearPendingIRQ(USB_HP_CAN1_TX_IRQn);
     
-}
-#endif
+// }
+// #endif
 
 #if CAN_RX
 void USB_LP_CAN1_RX0_IRQHandler() {
