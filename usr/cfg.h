@@ -4,6 +4,9 @@
 #define PIN_USART_TX    {GPIOA, {GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
 #define PIN_USART_RX    {GPIOA, {GPIO_PIN_3, GPIO_MODE_AF_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
 
+#define PIN_CAN_RX      {GPIOA, {GPIO_PIN_11, GPIO_MODE_AF_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
+#define PIN_CAN_TX      {GPIOA, {GPIO_PIN_12, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
+
 #define PIN_STEP_1      {GPIOB, {GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
 #define PIN_STEP_2      {GPIOB, {GPIO_PIN_4, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
 #define PIN_STEP_3      {GPIOB, {GPIO_PIN_3, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}}
@@ -18,7 +21,10 @@
 const gpio_cfg_t tx = PIN_USART_TX;
 const gpio_cfg_t rx = PIN_USART_RX;
 
-const usart_cfg_t usart_cfg = {USART2, &tx, &rx, 115200, 10};
+const gpio_cfg_t can_rx_pin_cfg = PIN_CAN_RX;
+const gpio_cfg_t can_tx_pin_cfg = PIN_CAN_TX;
+
+const usart_cfg_t usart_cfg = {USART2, &tx, &rx, 115200, 20};
 
 const load_cfg_t load_cfg = 
 {
