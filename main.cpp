@@ -40,7 +40,6 @@ void SendMeas(void *pvParameters)
     can_rx_pin.Init();
     can_tx_pin.Init();
     while(1){
-        can_tx(LOAD_ADDR, 0x01, 0x01, 1, &test, 1);
         vTaskDelay(1000);
     }
 }
@@ -48,7 +47,7 @@ void SendMeas(void *pvParameters)
 void LoadCmd(can_t *can)
 {
     uint16_t load_mask;
-    if(can->from != CTRL_COMP_ADDR || can->from != LOAD_ADDR) return;
+    if(can->from != CTRL_COMP_ADDR || can->to != LOAD_ADDR) return;
     switch(can->cmd) {
         case LOAD_CMD_OFF:
             load.Off();
@@ -59,7 +58,7 @@ void LoadCmd(can_t *can)
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
         case LOAD_CMD_SET:
-            load_mask = (can->data[0] << 8) | (can->data[1]);
+            load_mask = (can->data[1] << 8) | (can->data[0]);
             load.Set(load_mask);
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
@@ -75,8 +74,7 @@ int main(void)
     __HAL_AFIO_REMAP_SWJ_NOJTAG();
     rcc.InitClock();
     can_init(LoadCmd);
-    can_filter(0, 0x00, 0xFF, 0x00,      0x00); // From 0, to all - enumeration commands
-    can_filter(1, 0x00, 0x00, 0x00,      0xFF); // From all, broadcast
+    can_filter_cmd(0, CTRL_COMP_ADDR, 0xFF, LOAD_ADDR, 0xFF, 0x00, 0x00);
     xTaskCreate(ReceiveMeas, "ReceiveMeas", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(SendMeas, "SendMeas", configMINIMAL_STACK_SIZE, NULL, CAN_TX_TASK_PRIO, NULL);
     vTaskStartScheduler();
@@ -90,17 +88,4 @@ extern "C"
     {
         usart.Handler();
     }
-    #if CAN_TX
-void USB_HP_CAN1_TX_IRQHandler() {
-    
-    // Отправляем уведомление задаче
-    can_tx_sem_give_isr();
-    
-    // Очищаем флаги прерывания
-    CAN1->TSR |= CAN_TSR_RQCP0 | CAN_TSR_RQCP1 | CAN_TSR_RQCP2;
-    NVIC_ClearPendingIRQ(USB_HP_CAN1_TX_IRQn);
-    
-}
-#endif
-
 }

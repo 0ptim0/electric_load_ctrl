@@ -10,7 +10,7 @@
 #define DISARM 0
 
 #define CTRL_COMP_ADDR  0x01
-#define LOAD_ADDR       0x64
+#define LOAD_ADDR       0x40
 
 #define LOAD_CMD_ON         0x01
 #define LOAD_CMD_OFF        0x02

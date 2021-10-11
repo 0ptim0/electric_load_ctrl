@@ -9,8 +9,8 @@
 #endif
 
 // Settings
-
-#define CAN_BAUDRATE      CAN_BAUDRATE_100KHZ
+// For test board CAN - Ethernet - CAN_BAUDRATE_500KHZ
+#define CAN_BAUDRATE      CAN_BAUDRATE_500KHZ
 
 #define CAN_PRIO_BITS       2 /* Количество бит приоритета. Будет выделено 2^CAN_PRIO_BITS буферов под пакеты. Максимум 6 (из-за применения нерасширенного идентификатора в последующих пакетах) */
 #define CAN_LENGTH        256 /* Максимальная длина пакета (максимум 256, кратно 8) */

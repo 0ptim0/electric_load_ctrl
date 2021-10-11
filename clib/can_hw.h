@@ -21,7 +21,7 @@
 // Public functions
 
 void can_hw_init(void);
-// void USB_HP_CAN1_TX_IRQHandler(void);
+void USB_HP_CAN1_TX_IRQHandler(void);
 void USB_LP_CAN1_RX0_IRQHandler(void);
 
 #if CAN_TX    
