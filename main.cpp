@@ -17,7 +17,7 @@ static uint32_t c;
 // const gpio_cfg_t test3 = PIN_3;
 // gpio_class pin_test3(&test3);
 
-void ReceiveMeas(void *pvParameters) 
+void ReceiveMeas(void *pvParameters) // TODO Timeout
 {
     usart.Init();
     tm.data = data;
@@ -27,8 +27,8 @@ void ReceiveMeas(void *pvParameters)
             a++;
             if(!wake.Unpacking(&tm)) {
                 c++;
-                load.voltage = ((tm.data[0]) | (tm.data[1] << 8) | (tm.data[2] << 16) | (tm.data[3] << 24));
-                load.current = ((tm.data[4]) | (tm.data[5] << 8) | (tm.data[6] << 16) | (tm.data[7] << 24));
+                load.tm.V_mV = ((tm.data[0]) | (tm.data[1] << 8) | (tm.data[2] << 16) | (tm.data[3] << 24));
+                load.tm.I_mA = ((tm.data[4]) | (tm.data[5] << 8) | (tm.data[6] << 16) | (tm.data[7] << 24));
             }
     }
 }
@@ -47,22 +47,49 @@ void SendMeas(void *pvParameters)
 void LoadCmd(can_t *can)
 {
     uint16_t load_mask;
-    if(can->from != CTRL_COMP_ADDR || can->to != LOAD_ADDR) return;
+
     switch(can->cmd) {
-        case LOAD_CMD_OFF:
+
+        case LOAD_DISARM:
             load.Off();
+            load.tm.state = DISARM;
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
-        case LOAD_CMD_ON:
-            load.On();
+
+        case LOAD_MANUAL_CONTROL:
+            load.Off();
+            load.tm.state = MANUAL;
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
-        case LOAD_CMD_SET:
+
+        case LOAD_MIXED_CONTROL:
+            load.Off();
+            load.tm.state = MIXED;
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+            break;
+
+        case LOAD_REMOTE_CONTROL:
+            load.Off();
+            load.tm.state = REMOTE;
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+            break;
+
+        case LOAD_SET:
+            if(load.tm.state != REMOTE && load.tm.state != MIXED) {
+                can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
+                break;
+            }
             load_mask = (can->data[1] << 8) | (can->data[0]);
             load.Set(load_mask);
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
+
+        case LOAD_TM:
+            can_tx(can->to, can->from, can->cmd, 12, (uint8_t *)&load.tm, 1);
+            break;
+
         default:
+            can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
             break;
     }
 }
@@ -72,9 +99,15 @@ int main(void)
     HAL_Init();
     __HAL_RCC_AFIO_CLK_ENABLE();
     __HAL_AFIO_REMAP_SWJ_NOJTAG();
+
     rcc.InitClock();
+
     can_init(LoadCmd);
-    can_filter_cmd(0, CTRL_COMP_ADDR, 0xFF, LOAD_ADDR, 0xFF, 0x00, 0x00);
+    can_filter_cmd(0, 0x00, 0x00, LOAD_ADDR, 0xFF, 0x00, 0x00);
+
+    load.tm.state = MANUAL;
+    load.tm.error = LOAD_NO_ERR;
+
     xTaskCreate(ReceiveMeas, "ReceiveMeas", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(SendMeas, "SendMeas", configMINIMAL_STACK_SIZE, NULL, CAN_TX_TASK_PRIO, NULL);
     vTaskStartScheduler();
