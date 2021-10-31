@@ -101,6 +101,7 @@ int main(void)
     __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
     rcc.InitClock();
+    load.Init();
 
     can_init(LoadCmd);
     can_filter_cmd(0, 0x00, 0x00, LOAD_ADDR, 0xFF, 0x00, 0x00);
@@ -120,5 +121,10 @@ extern "C"
     void USART2_IRQHandler(void) 
     {
         usart.Handler();
+    }
+
+    void EXTI1_IRQHandler(void) 
+    {
+        load.Handler();
     }
 }
