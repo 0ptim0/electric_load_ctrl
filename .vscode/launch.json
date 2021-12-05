@@ -14,7 +14,7 @@
             "searchDir": [
                 "/usr/share/openocd/scripts",],
             "configFiles": [
-                "/usr/share/openocd/scripts/board/bluepill.cfg"
+                "/usr/share/openocd/scripts/board/st_nucleo_f103rb.cfg"
             ]
         }
     ]

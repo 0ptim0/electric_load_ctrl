@@ -1,5 +1,6 @@
 #include "stm32_conf.h"
 #include "can.h"
+#include "cfg.h"
 
 rcc_class rcc;
 usart_class usart(&usart_cfg);
@@ -79,6 +80,7 @@ void LoadCmd(can_t *can)
                 can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
                 break;
             }
+            
             load_mask = (can->data[1] << 8) | (can->data[0]);
             load.Set(load_mask);
             can_tx(can->to, can->from, can->cmd, 1, NULL, 1);
@@ -97,8 +99,6 @@ void LoadCmd(can_t *can)
 int main(void) 
 {
     HAL_Init();
-    __HAL_RCC_AFIO_CLK_ENABLE();
-    __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
     rcc.InitClock();
     load.Init();
@@ -109,6 +109,8 @@ int main(void)
     load.tm.state = MANUAL;
     load.tm.error = LOAD_NO_ERR;
 
+    HAL_InitTick(TICK_INT_PRIORITY);
+
     xTaskCreate(ReceiveMeas, "ReceiveMeas", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
     xTaskCreate(SendMeas, "SendMeas", configMINIMAL_STACK_SIZE, NULL, CAN_TX_TASK_PRIO, NULL);
     vTaskStartScheduler();
@@ -116,15 +118,3 @@ int main(void)
     }
 }
 
-extern "C" 
-{
-    void USART2_IRQHandler(void) 
-    {
-        usart.Handler();
-    }
-
-    void EXTI1_IRQHandler(void) 
-    {
-        load.Handler();
-    }
-}

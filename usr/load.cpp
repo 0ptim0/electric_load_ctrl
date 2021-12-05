@@ -1,17 +1,18 @@
 #include "load.h"
 
-load_class::load_class(const load_cfg_t *const cfg) 
+load_class::load_class(load_cfg_t *cfg) 
             : cfg(cfg)
 {
-    for(int i = 0; i < steps; i++) {
-        step[i].SetConf(&cfg->step[i]);
-        button[i].SetConf(&cfg->button[i], &cfg->button_exti[i]);
-    }
 }
 
 int load_class::Init(void)
 {
     int rv = 0;
+    for(int i = 0; i < steps; i++) {
+        step[i].SetConf(&cfg->step[i]);
+        step[i].SetOff();
+        button[i].SetConf(&cfg->button[i], &cfg->button_exti[i]);
+    }
     for(int i = 0; i < steps; i++) {
         rv |= step[i].Init();
         rv |= button[i].Init();
@@ -46,8 +47,34 @@ int load_class::Set(uint16_t mask)
     return 0;
 }
 
-int load_class::Handler(void)
+int load_class::IT(uint32_t pin)
 {
-        Set((tm.steps & ~PIN_STEP_1_MASK) | (~tm.steps & PIN_STEP_1_MASK));
-        
+    if(pin > LOAD_STEPS) return EINVAL;
+    button[pin].ClearBitEXTI_IT();
+    return 0;
+}
+
+int load_class::Handle(void)
+{
+    uint16_t num;
+    uint16_t mask;
+
+    if(tm.state != MANUAL && tm.state != MIXED) return 0;
+
+    mask = EXTI->PR;
+    num = GetNumFromMask(mask);
+    if(num > LOAD_STEPS + 1) return EINVAL;
+
+    for(int i = 0; i < LOAD_STEPS; i++) {
+        if(button[i].GetPin() == (mask & (0x1 << num))) {
+            num = i;
+            break;
+        }
+    }
+
+    mask = 0x1 << num;
+
+    Set((tm.steps & ~mask) | (~tm.steps & mask));
+    button[num].ClearBitEXTI_IT();
+    return 0;
 }
