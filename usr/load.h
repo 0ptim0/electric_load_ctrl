@@ -60,11 +60,15 @@ private:
 public:
     load_tm_t tm;
 public:
+    TimerHandle_t xButtonTimer;
+    const TickType_t ButtonDelay = 300 / portTICK_PERIOD_MS;
+    bool button_free;
+public:
     load_class(load_cfg_t *cfg);
     int Init(void);
     int Off(void);
     int On(void);
     int Set(uint16_t mask);
     int IT(uint32_t button);
-    int Handle(void);
+    int Handler(void);
 };

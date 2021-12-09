@@ -21,7 +21,8 @@ int load_class::Init(void)
 }
 
 int load_class::Off(void)
-{
+{   
+    tm.steps = 0x00;
     for(int i = 0; i < steps; i++) {
         step[i].SetOff();
     }
@@ -54,27 +55,31 @@ int load_class::IT(uint32_t pin)
     return 0;
 }
 
-int load_class::Handle(void)
-{
+int load_class::Handler(void)
+{   
+    BaseType_t pxHigherPriorityTaskWoken;
     uint16_t num;
     uint16_t mask;
 
-    if(tm.state != MANUAL && tm.state != MIXED) return 0;
-
     mask = EXTI->PR;
     num = GetNumFromMask(mask);
+
     if(num > LOAD_STEPS + 1) return EINVAL;
 
     for(int i = 0; i < LOAD_STEPS; i++) {
         if(button[i].GetPin() == (mask & (0x1 << num))) {
-            num = i;
-            break;
-        }
+                num = i;
+                break;
+            }
     }
 
-    mask = 0x1 << num;
+    if((tm.state == MANUAL || tm.state == MIXED) && button_free) {
+        xTimerStartFromISR(xButtonTimer, &pxHigherPriorityTaskWoken);
+        button_free = false;
+        mask = 0x1 << num;
+        Set((tm.steps & ~mask) | (~tm.steps & mask));
+    }
 
-    Set((tm.steps & ~mask) | (~tm.steps & mask));
     button[num].ClearBitEXTI_IT();
     return 0;
 }

@@ -20,6 +20,10 @@ static uint32_t c;
 
 void ReceiveMeas(void *pvParameters) // TODO Timeout
 {
+    uint8_t test;
+    test = 0xFF;
+    can_rx_pin.Init();
+    can_tx_pin.Init();
     usart.Init();
     tm.data = data;
     tm.max_data_length = 8;
@@ -31,17 +35,6 @@ void ReceiveMeas(void *pvParameters) // TODO Timeout
                 load.tm.V_mV = ((tm.data[0]) | (tm.data[1] << 8) | (tm.data[2] << 16) | (tm.data[3] << 24));
                 load.tm.I_mA = ((tm.data[4]) | (tm.data[5] << 8) | (tm.data[6] << 16) | (tm.data[7] << 24));
             }
-    }
-}
-
-void SendMeas(void *pvParameters) 
-{
-    uint8_t test;
-    test = 0xFF;
-    can_rx_pin.Init();
-    can_tx_pin.Init();
-    while(1){
-        vTaskDelay(1000);
     }
 }
 
@@ -96,6 +89,10 @@ void LoadCmd(can_t *can)
     }
 }
 
+void vButtonTimerCallback(TimerHandle_t xTimer) {
+    load.button_free = true;
+}
+
 int main(void) 
 {
     HAL_Init();
@@ -110,10 +107,24 @@ int main(void)
 
     load.tm.state = MANUAL;
     load.tm.error = LOAD_NO_ERR;
+    load.button_free = true;
 
-    xTaskCreate(ReceiveMeas, "ReceiveMeas", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
-    xTaskCreate(SendMeas, "SendMeas", configMINIMAL_STACK_SIZE, NULL, CAN_TX_TASK_PRIO, NULL);
+    load.xButtonTimer = xTimerCreate(
+                    "ButtonTimer",
+                    load.ButtonDelay,
+                    pdFALSE,
+                    (void *)0,
+                    vButtonTimerCallback);
+
+    xTaskCreate(ReceiveMeas, 
+                "ReceiveMeas", 
+                configMINIMAL_STACK_SIZE, 
+                NULL, 
+                1, 
+                NULL);
+
     vTaskStartScheduler();
+
     while(1){  
     }
 }
